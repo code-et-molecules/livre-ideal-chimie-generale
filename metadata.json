@@ -1,0 +1,6 @@
+{
+  "name": "Chimie générale - Manuel collégial",
+  "description": "Manuel complet et interactif de chimie générale pour le niveau collégial québécois (cégep), comprenant cours détaillés, visualisations moléculaires et exercices corrigés pas à pas.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
