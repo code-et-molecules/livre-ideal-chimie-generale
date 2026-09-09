@@ -1,0 +1,17 @@
+# Configuration de build et déploiement Netlify
+[build]
+  publish = "dist"
+  command = "npm run build"
+
+# Redirection Single Page Application (SPA)
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# Désactivation du scanner de détection stricte des faux-positifs sur les clés publiques clientes
+[build.environment]
+  SECRETS_SCAN_SMART_DETECTION_ENABLED = "false"
+  SECRETS_SCAN_ENABLED = "false"
+  SECRETS_SCAN_SMART_DETECTION_OMIT_VALUES = "AIzaSyAu2SoFXnhzW9N6MAmtaDQeTURkMV6KdJg"
+

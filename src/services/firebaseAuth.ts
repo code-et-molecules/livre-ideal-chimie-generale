@@ -1,4 +1,4 @@
-import { initializeApp, getApps } from 'firebase/app';
+import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
 import {
   getAuth,
   signInWithPopup,
@@ -6,11 +6,58 @@ import {
   onAuthStateChanged,
   signOut,
   User,
+  Auth,
 } from 'firebase/auth';
 import firebaseConfig from '../../firebase-applet-config.json';
 
-const app = !getApps().length ? initializeApp(firebaseConfig) : getApps()[0];
-export const auth = getAuth(app);
+// Récupération de la configuration Firebase avec priorité aux variables d'environnement Vite (Netlify / Production)
+const apiKey =
+  (import.meta.env.VITE_FIREBASE_API_KEY as string | undefined)?.trim() ||
+  firebaseConfig.apiKey ||
+  '';
+const authDomain =
+  (import.meta.env.VITE_FIREBASE_AUTH_DOMAIN as string | undefined)?.trim() ||
+  firebaseConfig.authDomain ||
+  '';
+const projectId =
+  (import.meta.env.VITE_FIREBASE_PROJECT_ID as string | undefined)?.trim() ||
+  firebaseConfig.projectId ||
+  '';
+const storageBucket =
+  (import.meta.env.VITE_FIREBASE_STORAGE_BUCKET as string | undefined)?.trim() ||
+  firebaseConfig.storageBucket ||
+  '';
+const messagingSenderId =
+  (import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID as string | undefined)?.trim() ||
+  firebaseConfig.messagingSenderId ||
+  '';
+const appId =
+  (import.meta.env.VITE_FIREBASE_APP_ID as string | undefined)?.trim() ||
+  firebaseConfig.appId ||
+  '';
+
+let app: FirebaseApp | null = null;
+let authInstance: Auth | null = null;
+
+if (apiKey) {
+  try {
+    app = !getApps().length
+      ? initializeApp({
+          apiKey,
+          authDomain,
+          projectId,
+          storageBucket,
+          messagingSenderId,
+          appId,
+        })
+      : getApps()[0];
+    authInstance = getAuth(app);
+  } catch (err) {
+    console.warn('Initialisation de Firebase Auth différée :', err);
+  }
+}
+
+export const auth = authInstance;
 
 const provider = new GoogleAuthProvider();
 provider.addScope('https://www.googleapis.com/auth/documents');
@@ -24,7 +71,12 @@ export const initAuth = (
   onAuthSuccess?: (user: User, token: string) => void,
   onAuthFailure?: () => void
 ) => {
-  return onAuthStateChanged(auth, async (user: User | null) => {
+  if (!authInstance) {
+    if (onAuthFailure) onAuthFailure();
+    return () => {};
+  }
+
+  return onAuthStateChanged(authInstance, async (user: User | null) => {
     if (user) {
       if (cachedAccessToken) {
         if (onAuthSuccess) onAuthSuccess(user, cachedAccessToken);
@@ -40,9 +92,15 @@ export const initAuth = (
 };
 
 export const googleSignIn = async (): Promise<{ user: User; accessToken: string } | null> => {
+  if (!authInstance) {
+    throw new Error(
+      "Configuration Firebase manquante. Pour déployer sur Netlify, ajoutez la variable d'environnement VITE_FIREBASE_API_KEY dans votre panneau Netlify (Site configuration > Environment variables)."
+    );
+  }
+
   try {
     isSigningIn = true;
-    const result = await signInWithPopup(auth, provider);
+    const result = await signInWithPopup(authInstance, provider);
     const credential = GoogleAuthProvider.credentialFromResult(result);
     if (!credential?.accessToken) {
       throw new Error("Impossible d'obtenir le jeton d'accès de Firebase Auth.");
@@ -63,6 +121,8 @@ export const getAccessToken = async (): Promise<string | null> => {
 };
 
 export const logout = async (): Promise<void> => {
-  await signOut(auth);
+  if (authInstance) {
+    await signOut(authInstance);
+  }
   cachedAccessToken = null;
 };
